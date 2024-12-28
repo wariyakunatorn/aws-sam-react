@@ -18,6 +18,30 @@ interface FieldInput {
   value: string;
 }
 
+interface ApiError {
+  message: string;
+  statusCode?: number;
+}
+
+const useApi = () => {
+  const updateItem = async (id: string, data: DynamicData) => {
+    const session = await fetchAuthSession();
+    return put({
+      apiName: 'myApi',
+      path: `/crud/${id}`,
+      options: {
+        headers: {
+          Authorization: `Bearer ${session.tokens?.idToken?.toString()}`,
+          'Content-Type': 'application/json'
+        },
+        body: data
+      }
+    });
+  };
+
+  return { updateItem };
+};
+
 export function People() {
   const [data, setData] = useState<DynamicData[]>([]);
   const [error, setError] = useState<string>('');
@@ -27,6 +51,7 @@ export function People() {
   const [newField, setNewField] = useState<FieldInput>({ name: '', value: '' });
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const { updateItem } = useApi();
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -80,35 +105,24 @@ export function People() {
       setError('No item selected for update');
       return;
     }
-  
+
     setIsLoading(true);
-  
-    // Optimistic update
-    const updatedData = data.map(item => 
-      item.id === selectedItem.id ? formData : item
-    );
-    setData(updatedData);
-    
+
     try {
-      const session = await fetchAuthSession();
-      await put({
-        apiName: 'myApi',
-        path: `/crud/${selectedItem.id}`,
-        options: {
-          headers: {
-            Authorization: `Bearer ${session.tokens?.idToken?.toString()}`,
-            'Content-Type': 'application/json'
-          },
-          body: formData
-        }
-      });
+      // Optimistic update
+      const updatedData = data.map(item => 
+        item.id === selectedItem.id ? formData : item
+      );
+      setData(updatedData);
+      
+      await updateItem(selectedItem.id, formData);
       onClose();
       setError('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Update error:', err);
-      setError('Failed to update item');
-      // Revert optimistic update
-      setData(data);
+      const error = err as ApiError;
+      setError(error.message || 'Failed to update item');
+      setData(data); // Revert optimistic update
     } finally {
       setIsLoading(false);
     }
