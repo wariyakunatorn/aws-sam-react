@@ -1,0 +1,29 @@
+/* src/App.css */
+/* Remove all styles since we're using Tailwind CSS */
+/* Global styles only if needed */
+:root {
+  --max-width: 1200px;
+  --border-radius: 8px;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Remove login-container, login-form, form-group since they're handled by Tailwind in Login.tsx */
+/* Only keep styles that can't be handled by Tailwind */
+
+/* Optional: Add any custom scrollbar or global styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: var(--border-radius);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
