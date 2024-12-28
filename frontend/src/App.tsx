@@ -2,90 +2,57 @@ import { NextUIProvider } from '@nextui-org/react';
 import { Amplify } from 'aws-amplify';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Home } from './pages/Home';
-import { People } from './pages/People';
-import { Login } from './pages/Login';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 
-Amplify.configure(
-  {
-    Auth: {
-      Cognito: {
-        userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
-        userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID
-      }
-    },
-    API: {
-      REST: {
-        myApi: {
-          endpoint: import.meta.env.VITE_API_ENDPOINT
-        }
-      }
+// Lazy load components with proper types
+const Home = lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
+const People = lazy(() => import('./pages/People').then(module => ({ default: module.People })));
+const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+
+// Amplify config
+const amplifyConfig = {
+  Auth: {
+    Cognito: {
+      userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
+      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID
     }
   },
-  {
-    API: {
-      REST: {
+  API: {
+    REST: {
+      myApi: {
+        endpoint: import.meta.env.VITE_API_ENDPOINT,
         headers: async () => {
-          const session = await fetchAuthSession();
-          return {
-            Authorization: `Bearer ${session.tokens?.idToken?.toString()}`
-          };
+          try {
+            const session = await fetchAuthSession();
+            return {
+              Authorization: `Bearer ${session.tokens?.idToken?.toString() || ''}`
+            };
+          } catch (error) {
+            console.error('Auth header error:', error);
+            return {};
+          }
         }
       }
     }
   }
-);
+};
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+// Initialize Amplify
+Amplify.configure(amplifyConfig);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      await fetchAuthSession();
-      setIsAuthenticated(true);
-    } catch {
-      setIsAuthenticated(false);
-    }
-  };
-
-  if (isAuthenticated === null) {
-    return null; // or loading spinner
-  }
-
-  return isAuthenticated ? children : <Navigate to="/login" />;
-}
-
-function App() {
+export default function App() {
   return (
     <NextUIProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route 
-            path="/" 
-            element={
-              <PrivateRoute>
-                <Home />
-              </PrivateRoute>
-            } 
-          />
-          <Route 
-            path="/people" 
-            element={
-              <PrivateRoute>
-                <People />
-              </PrivateRoute>
-            } 
-          />
-        </Routes>
+        <Suspense fallback={<div>Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/people" element={<People />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </NextUIProvider>
   );
 }
-
-export default App;

@@ -91,12 +91,30 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref DynamoDBTable
       Events:
-        ApiEvent:
+        ListItems:
           Type: Api
           Properties:
             RestApiId: !Ref MyApi
             Path: /crud
-            Method: ANY
+            Method: GET
+        CreateItem:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /crud
+            Method: POST
+        DeleteItem:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /crud/{id}
+            Method: DELETE
+        UpdateItem:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /crud/{id}
+            Method: PUT
 
   # Cognito Identity Pool
   IdentityPool:

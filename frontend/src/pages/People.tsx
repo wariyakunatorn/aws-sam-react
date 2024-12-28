@@ -76,8 +76,14 @@ export function People() {
   };
 
   const handleUpdate = async () => {
-    if (!selectedItem) return;
-    
+    if (!selectedItem?.id) {
+      setError('No item selected for update');
+      return;
+    }
+  
+    setIsLoading(true);
+  
+    // Optimistic update
     const updatedData = data.map(item => 
       item.id === selectedItem.id ? formData : item
     );
@@ -90,19 +96,30 @@ export function People() {
         path: `/crud/${selectedItem.id}`,
         options: {
           headers: {
-            'Authorization': `Bearer ${session.tokens?.idToken?.toString()}`
+            Authorization: `Bearer ${session.tokens?.idToken?.toString()}`,
+            'Content-Type': 'application/json'
           },
           body: formData
         }
       });
       onClose();
-    } catch (err) {
+      setError('');
+    } catch (err: any) {
+      console.error('Update error:', err);
       setError('Failed to update item');
+      // Revert optimistic update
       setData(data);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!id) {
+      setError('Invalid item ID');
+      return;
+    }
+
     setData(prevData => prevData.filter(item => item.id !== id));
     
     try {
@@ -116,9 +133,11 @@ export function People() {
           }
         }
       });
+      setError('');
     } catch (err) {
+      console.error('Delete error:', err);
       setError('Failed to delete item');
-      fetchData();
+      fetchData(); // Revert optimistic update
     }
   };
 
