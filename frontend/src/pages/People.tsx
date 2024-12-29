@@ -4,12 +4,12 @@ import {
   ModalContent, ModalHeader, ModalBody, ModalFooter, Input, useDisclosure 
 } from '@nextui-org/react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useState, useEffect, ReactElement } from 'react';
+import { useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 
 interface DynamicData {
   id: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | object;
 }
 
 interface FieldInput {
@@ -17,14 +17,10 @@ interface FieldInput {
   value: string;
 }
 
-interface ApiError {
-  message: string;
-  statusCode?: number;
-}
-
 export function People() {
   const { useItems, useCreateItem, useUpdateItem, useDeleteItem } = useApi();
-  const { data, isLoading, error } = useItems();
+  const { data: apiData, isLoading } = useItems();
+  const data = (apiData || []) as DynamicData[];
   const createMutation = useCreateItem();
   const updateMutation = useUpdateItem();
   const deleteMutation = useDeleteItem();
@@ -34,13 +30,19 @@ export function People() {
   const [newField, setNewField] = useState<FieldInput>({ name: '', value: '' });
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
+  const fetchData = () => {
+    // Data is automatically fetched by useItems()
+    setErrorMessage('');
+  };
 
   const handleCreate = async () => {
     try {
       await createMutation.mutateAsync(formData);
       onClose();
     } catch (err) {
-      setError('Failed to create item');
+      setErrorMessage('Failed to create item');
     }
   };
 
@@ -50,7 +52,7 @@ export function People() {
       await updateMutation.mutateAsync({ id: selectedItem.id, data: formData });
       onClose();
     } catch (err) {
-      setError('Failed to update item');
+      setErrorMessage('Failed to update item');
     }
   };
 
@@ -58,7 +60,7 @@ export function People() {
     try {
       await deleteMutation.mutateAsync(id);
     } catch (err) {
-      setError('Failed to delete item');
+      setErrorMessage('Failed to delete item');
     }
   };
 
@@ -103,6 +105,11 @@ export function People() {
     fetchData();
   }, [isOpen]);
 
+  // Get unique columns from data with proper typing
+  const columns: string[] = Array.from(new Set(
+    data.flatMap((item: DynamicData) => Object.keys(item))
+  )).filter(key => key !== 'id');
+
   return (
     <div className="w-screen min-h-screen bg-gradient-to-br from-blue-50 to-violet-50">
       <Navbar className="border-b border-divider bg-background/70 backdrop-blur-sm">
@@ -122,50 +129,53 @@ export function People() {
       <main className="max-w-[1024px] mx-auto px-6 pt-6">
         <Card className="shadow-md">
           <CardBody className="p-6">
-            {error && <p className="text-danger text-center mb-4">{error}</p>}
+            {errorMessage && <p className="text-danger text-center mb-4">{errorMessage}</p>}
             {isLoading ? (
               <div className="flex justify-center items-center h-40">
                 <Spinner size="lg" />
               </div>
             ) : data.length > 0 ? (
-<Table aria-label="Dynamic data table">
-  <TableHeader>
-    <TableColumn>ID</TableColumn>
-    {Array.from(new Set(data.flatMap(item => Object.keys(item))))
-      .filter(key => key !== 'id')
-      .map((column: string) => (
-        <TableColumn key={column}>{column.toUpperCase()}</TableColumn>
-      )) as unknown as ReactElement}
-    <TableColumn>ACTIONS</TableColumn>
-  </TableHeader>
-  <TableBody>
-    {data.map((item) => (
-      <TableRow key={item.id}>
-        <TableCell>{item.id}</TableCell>
-        {Array.from(new Set(data.flatMap(item => Object.keys(item))))
-          .filter(key => key !== 'id')
-          .map((column: string) => (
-            <TableCell key={`${item.id}-${column}`}>
-              {typeof item[column] === 'object' 
-                ? JSON.stringify(item[column]) 
-                : String(item[column] ?? '-')}
-            </TableCell>
-          )) as unknown as ReactElement}
-        <TableCell>
-          <div className="flex gap-2">
-            <Button size="sm" color="primary" onPress={() => openEditModal(item)}>
-              Edit
-            </Button>
-            <Button size="sm" color="danger" onPress={() => handleDelete(item.id)}>
-              Delete
-            </Button>
-          </div>
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
-
+              <Table aria-label="Dynamic data table">
+                <TableHeader>
+                  {[
+                    { key: 'id', label: 'ID' },
+                    ...columns.map(column => ({ key: column, label: column.toUpperCase() })),
+                    { key: 'actions', label: 'ACTIONS' }
+                  ].map(({ key, label }) => (
+                    <TableColumn key={key}>{label}</TableColumn>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {data.map((item: DynamicData) => (
+                    <TableRow key={item.id}>
+                      {[
+                        { key: 'id', content: item.id },
+                        ...columns.map(column => ({
+                          key: `${item.id}-${column}`,
+                          content: typeof item[column] === 'object' 
+                            ? JSON.stringify(item[column]) 
+                            : String(item[column] ?? '-')
+                        })),
+                        {
+                          key: `${item.id}-actions`,
+                          content: (
+                            <div className="flex gap-2">
+                              <Button size="sm" color="primary" onPress={() => openEditModal(item)}>
+                                Edit
+                              </Button>
+                              <Button size="sm" color="danger" onPress={() => handleDelete(item.id)}>
+                                Delete
+                              </Button>
+                            </div>
+                          )
+                        }
+                      ].map(({ key, content }) => (
+                        <TableCell key={key}>{content}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
               <p className="text-center text-default-600">No data available</p>
             )}
@@ -235,7 +245,7 @@ export function People() {
                   <div key={fieldName} className="flex gap-2">
                     <Input
                       label={fieldName.toUpperCase()}
-                      value={value || ''}
+                      value={String(value || '')}
                       onChange={(e) => setFormData({...formData, [fieldName]: e.target.value})}
                       className="flex-grow"
                     />
