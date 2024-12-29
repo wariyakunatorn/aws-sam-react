@@ -1,27 +1,28 @@
-# 🚀 Serverless Full-Stack Application
+# Serverless Full-Stack Application
 
 A modern full-stack application built with React and AWS Serverless technologies.
 
-## 🛠 Tech Stack
+## Tech Stack
 
-### 🎨 Frontend
-- ⚛️ React + TypeScript
-- ⚡ Vite
-- 🎯 shadcn/ui components
-- 🔐 AWS Amplify Authentication
-- 🔄 React Query
-- 📝 React Hook Form + Zod
-- 🗃️ Zustand State Management
-- 🎨 TailwindCSS
+### Frontend
+- React + TypeScript
+- Vite
+- shadcn/ui components
+- AWS Amplify Authentication
+- React Query
+- React Hook Form + Zod
+- Zustand State Management
+- TailwindCSS
+- TanStack Tables
 
-### ☁️ Backend
-- 🌩️ AWS SAM (Serverless Application Model)
-- 🚪 API Gateway
-- λ Lambda Functions
-- 📦 DynamoDB
-- 👥 Cognito User Pools
+### Backend
+- AWS SAM (Serverless Application Model)
+- API Gateway
+- Lambda Functions
+- DynamoDB
+- Cognito User Pools
 
-## ✨ Features
+## Features
 - 🔒 Secure user authentication
 - 🛡️ Protected routes & API endpoints
 - 📊 Dynamic data management
@@ -29,13 +30,13 @@ A modern full-stack application built with React and AWS Serverless technologies
 - 📱 Responsive UI
 - 🔍 Type-safe codebase
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- 📦 Node.js (v18+)
-- ⚙️ AWS CLI configured
-- 🛠️ AWS SAM CLI
-- 📥 Git
+- Node.js (v18+)
+- AWS CLI configured
+- AWS SAM CLI
+- Git
 
 ### Installation
 
@@ -77,27 +78,27 @@ VITE_API_URL=<your-api-gateway-url>
 npm run dev
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 frontend/
-├── 📂 src/
-│   ├── 🧩 components/    # UI components
-│   ├── 📄 pages/         # Page components
-│   ├── 🎣 hooks/         # Custom hooks
-│   ├── 🏪 store/         # State management
-│   ├── 📚 lib/          # Utilities
-│   └── 📝 types/        # TypeScript types
+├── src/
+│   ├── components/    # UI components
+│   ├── pages/         # Page components
+│   ├── hooks/         # Custom hooks
+│   ├── store/         # State management
+│   ├── lib/           # Utilities
+│   └── types/         # TypeScript types
 ```
 
 ```
 backend/
-├── 📄 template.yaml     # SAM template
-├── 📂 functions/       # Lambda functions
-└── 📂 events/         # API Gateway events
+├── template.yaml     # SAM template
+├── functions/        # Lambda functions
+└── events/           # API Gateway events
 ```
 
-## 🚀 Deployment
+## Deployment
 
 ### Frontend
 ```bash
@@ -111,7 +112,7 @@ sam build
 sam deploy
 ```
 
-## 🧪 Testing
+## Testing
 ```bash
 # Frontend tests
 cd frontend
@@ -122,12 +123,12 @@ cd backend
 npm test
 ```
 
-## 🤝 Contributing
-1. 🍴 Fork the repository
-2. 🌿 Create your feature branch
-3. 💾 Commit your changes
-4. 🚀 Push to the branch
-5. 📬 Create a Pull Request
+## Contributing
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-## 📄 License
+## License
 MIT
