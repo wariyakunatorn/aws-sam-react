@@ -5,8 +5,7 @@ import {
 } from '@nextui-org/react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useState, useEffect, ReactElement } from 'react';
-import { get, post, del, put } from 'aws-amplify/api';
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { useApi } from '../hooks/useApi';
 
 interface DynamicData {
   id: string;
@@ -23,77 +22,22 @@ interface ApiError {
   statusCode?: number;
 }
 
-const useApi = () => {
-  const updateItem = async (id: string, data: DynamicData) => {
-    const session = await fetchAuthSession();
-    return put({
-      apiName: 'myApi',
-      path: `/crud/${id}`,
-      options: {
-        headers: {
-          Authorization: `Bearer ${session.tokens?.idToken?.toString()}`,
-          'Content-Type': 'application/json'
-        },
-        body: data
-      }
-    });
-  };
-
-  return { updateItem };
-};
-
 export function People() {
-  const [data, setData] = useState<DynamicData[]>([]);
-  const [error, setError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
+  const { useItems, useCreateItem, useUpdateItem, useDeleteItem } = useApi();
+  const { data, isLoading, error } = useItems();
+  const createMutation = useCreateItem();
+  const updateMutation = useUpdateItem();
+  const deleteMutation = useDeleteItem();
+  
   const [selectedItem, setSelectedItem] = useState<DynamicData | null>(null);
   const [formData, setFormData] = useState<DynamicData>({} as DynamicData);
   const [newField, setNewField] = useState<FieldInput>({ name: '', value: '' });
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const { updateItem } = useApi();
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-        const session = await fetchAuthSession();
-        const response = await get({
-            apiName: 'myApi',
-            path: '/crud',
-            options: {
-                headers: {
-                    'Authorization': `Bearer ${session.tokens?.idToken?.toString()}`
-                },
-                withCredentials: false
-            }
-        }).response;
-        const json = await response.body.json();
-        setData(Array.isArray(json) ? json.map(item => item as DynamicData) : []);
-        setError('');
-    } catch (err) {
-        setError('Failed to fetch data');
-        // Remove the setTimeout(fetchData, 3000);
-    } finally {
-        setIsLoading(false);
-    }
-};
 
   const handleCreate = async () => {
     try {
-      const session = await fetchAuthSession();
-      const response = await post({
-        apiName: 'myApi',
-        path: '/crud',
-        options: {
-          headers: {
-            'Authorization': `Bearer ${session.tokens?.idToken?.toString()}`
-          },
-          body: formData
-        }
-      }).response;
-      
-      const newItem = await response.body.json() as DynamicData;
-      setData(prevData => [...prevData, newItem]);
+      await createMutation.mutateAsync(formData);
       onClose();
     } catch (err) {
       setError('Failed to create item');
@@ -101,57 +45,20 @@ export function People() {
   };
 
   const handleUpdate = async () => {
-    if (!selectedItem?.id) {
-      setError('No item selected for update');
-      return;
-    }
-
-    setIsLoading(true);
-
+    if (!selectedItem?.id) return;
     try {
-      // Optimistic update
-      const updatedData = data.map(item => 
-        item.id === selectedItem.id ? formData : item
-      );
-      setData(updatedData);
-      
-      await updateItem(selectedItem.id, formData);
+      await updateMutation.mutateAsync({ id: selectedItem.id, data: formData });
       onClose();
-      setError('');
-    } catch (err: unknown) {
-      console.error('Update error:', err);
-      const error = err as ApiError;
-      setError(error.message || 'Failed to update item');
-      setData(data); // Revert optimistic update
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      setError('Failed to update item');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!id) {
-      setError('Invalid item ID');
-      return;
-    }
-
-    setData(prevData => prevData.filter(item => item.id !== id));
-    
     try {
-      const session = await fetchAuthSession();
-      await del({
-        apiName: 'myApi',
-        path: `/crud/${id}`,
-        options: {
-          headers: {
-            'Authorization': `Bearer ${session.tokens?.idToken?.toString()}`
-          }
-        }
-      });
-      setError('');
+      await deleteMutation.mutateAsync(id);
     } catch (err) {
-      console.error('Delete error:', err);
       setError('Failed to delete item');
-      fetchData(); // Revert optimistic update
     }
   };
 
