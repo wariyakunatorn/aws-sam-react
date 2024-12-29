@@ -8,10 +8,10 @@ export function PageLayout({ children }: { children: React.ReactNode }) {
 
 export function PageHeader({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+    <div className="flex flex-col gap-1.5 px-4 sm:px-0">
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
       {description && (
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-base sm:text-lg">
           {description}
         </p>
       )}
@@ -21,9 +21,9 @@ export function PageHeader({ title, description }: { title: string; description?
 
 export function PageContent({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex-1">
-      <div className="container py-8">
-        <div className="space-y-6">
+    <main className="flex-1 w-full overflow-hidden">
+      <div className="container py-6 sm:py-8 px-0 sm:px-4">
+        <div className="space-y-6 overflow-x-auto">
           {children}
         </div>
       </div>
