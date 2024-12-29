@@ -1,18 +1,9 @@
-interface PageLayoutProps {
-  children: React.ReactNode;
-}
-
 export function PageLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {children}
     </div>
   )
-}
-
-interface PageHeaderProps {
-  title: string;
-  description?: string;
 }
 
 export function PageHeader({ title, description }: { title: string; description?: string }) {
@@ -26,10 +17,6 @@ export function PageHeader({ title, description }: { title: string; description?
       )}
     </div>
   )
-}
-
-interface PageContentProps {
-  children: React.ReactNode;
 }
 
 export function PageContent({ children }: { children: React.ReactNode }) {
