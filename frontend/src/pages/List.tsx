@@ -22,9 +22,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useCallback, useState } from 'react';
-import { signOut } from 'aws-amplify/auth';
-import { useNavigate } from 'react-router-dom';
-import { Link as RouterLink } from 'react-router-dom';
 import { type DynamicData } from '../types';
 import { useListItems, useDeleteItem, useUpdateItem, useCreateItem } from '../api/hooks';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -39,47 +36,6 @@ const useDialog = () => {
     onOpen: () => setIsOpen(true),
     onClose: () => setIsOpen(false)
   };
-};
-
-const AppNavbar = () => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSignOut = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
-
-  return (
-    <nav className="border-b">
-      <div className="container flex h-14 items-center justify-between">
-        <h1 className="font-medium">Dynamic List</h1>
-        <div className="flex items-center gap-4">
-          <RouterLink 
-            to="/"
-            className="text-sm text-muted-foreground hover:text-primary"
-          >
-            Back to Dashboard
-          </RouterLink>
-          <Button 
-            variant="destructive"
-            size="sm"
-            onClick={handleSignOut}
-            disabled={isLoading}
-          >
-            Sign Out
-          </Button>
-        </div>
-      </div>
-    </nav>
-  );
 };
 
 interface FieldInput {
