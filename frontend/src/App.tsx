@@ -1,43 +1,14 @@
-import { NextUIProvider } from '@nextui-org/react';
+import { NextUIProvider, Spinner } from '@nextui-org/react';
 import { Amplify } from 'aws-amplify';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { lazy, Suspense, Component, ReactNode } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PrivateRoute } from './components/PrivateRoute';
+import { useAuthStore } from './store/authStore';
 
-// Error Boundary Component
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="p-4 text-center">
-          <h2 className="text-xl font-bold text-danger">Something went wrong.</h2>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-primary text-white rounded"
-          >
-            Refresh Page
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// Lazy load components with proper types
+// Lazy load components
 const Home = lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
-const People = lazy(() => import('./pages/People').then(module => ({ default: module.People })));
+const List = lazy(() => import('./pages/List').then(module => ({ default: module.List })));
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 
 // Amplify config
@@ -53,79 +24,72 @@ const amplifyConfig = {
       myApi: {
         endpoint: import.meta.env.VITE_API_ENDPOINT,
         headers: async () => {
-          try {
-            const session = await fetchAuthSession();
-            return {
-              Authorization: `Bearer ${session.tokens?.idToken?.toString() || ''}`
-            };
-          } catch (error) {
-            console.error('Auth header error:', error);
-            return {};
-          }
+          const session = await fetchAuthSession();
+          return {
+            Authorization: `Bearer ${session.tokens?.idToken?.toString() || ''}`
+          };
         }
       }
     }
   }
 };
 
-// Initialize Amplify
 Amplify.configure(amplifyConfig);
 
-// Initialize QueryClient at module level
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60, // 1 minute
+      staleTime: 1000 * 60,
       retry: 1,
       refetchOnWindowFocus: false
     }
   }
 });
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
 export default function App() {
+  const { checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <NextUIProvider>
-          <BrowserRouter>
-            <Suspense fallback={
-              <div className="h-screen w-screen flex items-center justify-center">
-                <div className="text-center">Loading...</div>
-              </div>
-            }>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                {/* Redirect root to login if not authenticated */}
-                <Route 
-                  path="/" 
-                  element={
-                    <PrivateRoute>
-                      <Navigate to="/home" replace />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/home" 
-                  element={
-                    <PrivateRoute>
-                      <Home />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/people" 
-                  element={
-                    <PrivateRoute>
-                      <People />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route path="*" element={<Navigate to="/login" />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </NextUIProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <NextUIProvider>
+        <BrowserRouter>
+          <Suspense fallback={
+            <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50">
+              <Spinner size="lg" />
+            </div>
+          }>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Navigate to="/home" replace />} />
+              <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+              <Route path="/list" element={<ProtectedRoute><List /></ProtectedRoute>} />
+              <Route path="*" element={<Navigate to="/login" />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </NextUIProvider>
+    </QueryClientProvider>
   );
 }
