@@ -37,7 +37,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 // Lazy load components with proper types
 const Home = lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
-const People = lazy(() => import('./pages/People').then(module => ({ default: module.People })));
+const List = lazy(() => import('./pages/List').then(module => ({ default: module.List })));
 const Login = lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 
 // Amplify config
@@ -95,31 +95,9 @@ export default function App() {
             }>
               <Routes>
                 <Route path="/login" element={<Login />} />
-                {/* Redirect root to login if not authenticated */}
-                <Route 
-                  path="/" 
-                  element={
-                    <PrivateRoute>
-                      <Navigate to="/home" replace />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/home" 
-                  element={
-                    <PrivateRoute>
-                      <Home />
-                    </PrivateRoute>
-                  } 
-                />
-                <Route 
-                  path="/people" 
-                  element={
-                    <PrivateRoute>
-                      <People />
-                    </PrivateRoute>
-                  } 
-                />
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
+                <Route path="/list" element={<PrivateRoute><List /></PrivateRoute>} />
                 <Route path="*" element={<Navigate to="/login" />} />
               </Routes>
             </Suspense>
