@@ -1,81 +1,29 @@
 import { Card, CardBody, CardHeader, Input, Button } from '@nextui-org/react';
-import { useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { signIn } from 'aws-amplify/auth';
+import { useAuthStore } from '../store/authStore';
 
-interface LoginFormState {
+interface LoginFormData {
   username: string;
   password: string;
-  newPassword: string;
-  confirmPassword: string;
-  isChangePassword?: boolean;
 }
-
-const useAuthState = () => {
-  const [formState, setFormState] = useState<LoginFormState>({
-    username: '',
-    password: '',
-    newPassword: '',
-    confirmPassword: '',
-    isChangePassword: false
-  });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isChangePassword, setIsChangePassword] = useState(false);
-
-  return {
-    formState,
-    setFormState,
-    error,
-    setError,
-    isLoading,
-    setIsLoading,
-    isChangePassword,
-    setIsChangePassword
-  };
-};
-
-const validateForm = (form: LoginFormState): string => {
-  if (!form.username || !form.password) {
-    return 'Please fill in all fields';
-  }
-  if (form.isChangePassword && form.newPassword !== form.confirmPassword) {
-    return 'Passwords do not match';
-  }
-  return '';
-};
 
 export function Login() {
   const navigate = useNavigate();
-  const auth = useAuthState();
+  const { login, isLoading, error } = useAuthStore();
   
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const validationError = validateForm(auth.formState);
-    if (validationError) {
-      auth.setError(validationError);
-      return;
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+    defaultValues: {
+      username: '',
+      password: ''
     }
+  });
 
-    auth.setIsLoading(true);
+  const onSubmit: SubmitHandler<LoginFormData> = async (data) => {
     try {
-      const { username, password } = auth.formState;
-      const signInOutput = await signIn({ 
-        username, 
-        password,
-        options: { authFlowType: "USER_PASSWORD_AUTH" }
-      });
-      
-      if (signInOutput.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
-        auth.setIsChangePassword(true);
-      } else {
-        navigate('/');
-      }
-    } catch (err: any) {
-      auth.setError(err.message || 'Invalid username or password');
-    } finally {
-      auth.setIsLoading(false);
-    }
+      await login(data.username, data.password);
+      navigate('/home');
+    } catch {} // Error is handled by store
   };
 
   return (
@@ -88,14 +36,14 @@ export function Login() {
           </CardHeader>
           
           <CardBody className="px-6 pb-8">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
               <Input
                 label="Username"
-                value={auth.formState.username}
-                onChange={(e) => auth.setFormState({...auth.formState, username: e.target.value})}
-                isRequired
-                size="lg"
+                {...register('username', { required: 'Username is required' })}
+                isInvalid={!!errors.username}
+                errorMessage={errors.username?.message}
                 autoFocus
+                size="lg"
                 classNames={{
                   base: "w-full",
                   mainWrapper: "w-full",
@@ -106,9 +54,12 @@ export function Login() {
               <Input
                 label="Password"
                 type="password"
-                value={auth.formState.password}
-                onChange={(e) => auth.setFormState({...auth.formState, password: e.target.value})}
-                isRequired
+                {...register('password', { 
+                  required: 'Password is required',
+                  minLength: { value: 8, message: 'Password must be at least 8 characters' }
+                })}
+                isInvalid={!!errors.password}
+                errorMessage={errors.password?.message}
                 size="lg"
                 classNames={{
                   base: "w-full",
@@ -117,20 +68,19 @@ export function Login() {
                   inputWrapper: "w-full"
                 }}
               />
-              {auth.error && (
-                <p className="text-danger text-sm text-center">{auth.error}</p>
+              {error && (
+                <p className="text-danger text-sm text-center">{error}</p>
               )}
               <Button
                 type="submit"
                 color="primary"
-                isLoading={auth.isLoading}
+                isLoading={isLoading}
                 size="lg"
                 className="w-full"
               >
-                {auth.isChangePassword ? 'Change Password' : 'Sign In'}
+                Sign In
               </Button>
-            </form>
-          </CardBody>
+            </form>          </CardBody>
         </Card>
       </div>
     </div>
