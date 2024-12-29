@@ -4,6 +4,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense, Component, ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PrivateRoute } from './components/PrivateRoute';
 
 // Error Boundary Component
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -93,10 +94,33 @@ export default function App() {
               </div>
             }>
               <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/people" element={<People />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="*" element={<Navigate to="/" />} />
+                {/* Redirect root to login if not authenticated */}
+                <Route 
+                  path="/" 
+                  element={
+                    <PrivateRoute>
+                      <Navigate to="/home" replace />
+                    </PrivateRoute>
+                  } 
+                />
+                <Route 
+                  path="/home" 
+                  element={
+                    <PrivateRoute>
+                      <Home />
+                    </PrivateRoute>
+                  } 
+                />
+                <Route 
+                  path="/people" 
+                  element={
+                    <PrivateRoute>
+                      <People />
+                    </PrivateRoute>
+                  } 
+                />
+                <Route path="*" element={<Navigate to="/login" />} />
               </Routes>
             </Suspense>
           </BrowserRouter>
