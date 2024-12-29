@@ -2,6 +2,7 @@ import { Card, CardBody, CardHeader, Input, Button } from '@nextui-org/react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { signOut } from 'aws-amplify/auth';
 
 interface LoginFormData {
   username: string;
@@ -21,6 +22,10 @@ export function Login() {
 
   const onSubmit: SubmitHandler<LoginFormData> = async (data) => {
     try {
+      // Sign out any existing user first
+      await signOut();
+      
+      // Then attempt to sign in
       await login(data.username, data.password);
       navigate('/home');
     } catch {} // Error is handled by store

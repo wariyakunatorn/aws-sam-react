@@ -29,10 +29,10 @@ const AppNavbar = memo(() => {
       <NavbarContent justify="end" className="gap-4">
         <Link 
           as={RouterLink} 
-          to="/people"
+          to="/list"
           className="text-foreground hover:text-primary transition-colors"
         >
-          View People
+          View List
         </Link>
         <Button 
           color="danger" 
