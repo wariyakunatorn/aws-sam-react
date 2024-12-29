@@ -1,10 +1,10 @@
-import { NextUIProvider, Spinner } from '@nextui-org/react';
 import { Amplify } from 'aws-amplify';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from './store/authStore';
+import { LoadingSpinner } from './components/LoadingSpinner';
 
 // Lazy load components
 const Home = lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
@@ -54,11 +54,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50">
-        <Spinner size="lg" />
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   return isAuthenticated ? children : <Navigate to="/login" replace />;
@@ -73,23 +69,17 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <NextUIProvider>
-        <BrowserRouter>
-          <Suspense fallback={
-            <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50">
-              <Spinner size="lg" />
-            </div>
-          }>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-              <Route path="/list" element={<ProtectedRoute><List /></ProtectedRoute>} />
-              <Route path="*" element={<Navigate to="/login" />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </NextUIProvider>
+      <BrowserRouter>
+        <Suspense fallback={<LoadingSpinner fullScreen />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+            <Route path="/list" element={<ProtectedRoute><List /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 }
