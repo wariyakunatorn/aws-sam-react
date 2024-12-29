@@ -13,20 +13,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { useCallback, useState } from 'react';
 import { type DynamicData } from '../types';
 import { useListItems, useDeleteItem, useUpdateItem, useCreateItem } from '../api/hooks';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Navbar } from "@/components/Navbar"
 import { PageLayout, PageHeader, PageContent } from "@/components/PageLayout"
+import { type ColumnDef } from "@tanstack/react-table"
+import { DataTable } from "@/components/DataTable"
 
 // Add dialog hook
 const useDialog = () => {
@@ -133,44 +127,46 @@ export function List() {
     items.flatMap(item => Object.keys(item))
   )).filter(key => key !== 'id'); // Put ID first
 
-  const columns = [
-    { key: "id", label: "ID" },
-    ...columnKeys.map(key => ({
-      key,
-      label: key.toUpperCase()
+  const columns: ColumnDef<DynamicData>[] = [
+    {
+      accessorKey: "id",
+      header: "ID",
+      enableSorting: true,
+    },
+    // Generate dynamic columns
+    ...columnKeys.map((key) => ({
+      accessorKey: key,
+      header: key.toUpperCase(),
+      enableSorting: true,
     })),
-    { key: "actions", label: "ACTIONS" }
-  ];
-
-  const renderCell = (item: DynamicData, columnKey: React.Key) => {
-    if (columnKey === "actions") {
-      return (
-        <div className="flex gap-2">
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEdit(item)}
-          >
-            Edit
-          </Button>
-          <Button 
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(item.id)}
-            className="text-destructive"
-          >
-            Delete
-          </Button>
-        </div>
-      );
+    {
+      id: "actions",
+      header: "Actions",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const item = row.original
+        return (
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost"
+              size="sm"
+              onClick={() => handleEdit(item)}
+            >
+              Edit
+            </Button>
+            <Button 
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDelete(item.id)}
+              className="text-destructive"
+            >
+              Delete
+            </Button>
+          </div>
+        )
+      }
     }
-    
-    const value = item[columnKey as keyof DynamicData];
-    if (typeof value === 'object') {
-      return JSON.stringify(value);
-    }
-    return String(value ?? '');
-  };
+  ]
 
   return (
     <PageLayout>
@@ -188,45 +184,13 @@ export function List() {
           <CardHeader className="border-b">
             <div className="flex items-center justify-between">
               <CardTitle>Items List</CardTitle>
-              <Button 
-                onClick={handleOpenCreate} 
-                size="sm"
-              >
+              <Button onClick={handleOpenCreate} size="sm">
                 Add New Item
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {columns.map((column) => (
-                    <TableHead key={column.key}>{column.label}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="text-center">
-                      <span className="text-muted-foreground">
-                        No items found. Add your first item to get started.
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((item) => (
-                    <TableRow key={item.id}>
-                      {columns.map((column) => (
-                        <TableCell key={`${item.id}-${column.key}`}>
-                          {renderCell(item, column.key)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <DataTable columns={columns} data={items} />
           </CardContent>
         </Card>
 

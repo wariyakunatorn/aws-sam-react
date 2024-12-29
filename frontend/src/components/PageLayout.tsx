@@ -2,12 +2,12 @@ interface PageLayoutProps {
   children: React.ReactNode;
 }
 
-export function PageLayout({ children }: PageLayoutProps) {
+export function PageLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background flex flex-col">
       {children}
     </div>
-  );
+  )
 }
 
 interface PageHeaderProps {
@@ -15,23 +15,31 @@ interface PageHeaderProps {
   description?: string;
 }
 
-export function PageHeader({ title, description }: PageHeaderProps) {
+export function PageHeader({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="space-y-1">
-      <h1 className="text-3xl font-bold">{title}</h1>
-      {description && <p className="text-muted-foreground">{description}</p>}
+    <div className="flex flex-col gap-1.5">
+      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+      {description && (
+        <p className="text-muted-foreground text-lg">
+          {description}
+        </p>
+      )}
     </div>
-  );
+  )
 }
 
 interface PageContentProps {
   children: React.ReactNode;
 }
 
-export function PageContent({ children }: PageContentProps) {
+export function PageContent({ children }: { children: React.ReactNode }) {
   return (
-    <div className="container py-6 space-y-6">
-      {children}
-    </div>
-  );
+    <main className="flex-1">
+      <div className="container py-8">
+        <div className="space-y-6">
+          {children}
+        </div>
+      </div>
+    </main>
+  )
 }
