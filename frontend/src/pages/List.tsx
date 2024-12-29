@@ -1,50 +1,84 @@
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
-  Navbar, NavbarBrand, NavbarContent, Card, CardBody, Link, Table,
-  TableHeader, TableBody, TableColumn, TableRow, TableCell, Button, Spinner,
-  Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, useDisclosure
-} from '@nextui-org/react';
-import { Link as RouterLink } from 'react-router-dom';
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { useCallback, useState } from 'react';
 import { signOut } from 'aws-amplify/auth';
 import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { type DynamicData } from '../types';
 import { useListItems, useDeleteItem, useUpdateItem, useCreateItem } from '../api/hooks';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Navbar } from "@/components/Navbar"
+import { PageLayout, PageHeader, PageContent } from "@/components/PageLayout"
+
+// Add dialog hook
+const useDialog = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  return {
+    isOpen,
+    onOpen: () => setIsOpen(true),
+    onClose: () => setIsOpen(false)
+  };
+};
 
 const AppNavbar = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleSignOut = useCallback(async () => {
     try {
+      setIsLoading(true);
       await signOut();
       navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, [navigate]);
 
   return (
-    <Navbar className="border-b border-divider bg-background/70 backdrop-blur-sm">
-      <NavbarBrand>
-        <h1 className="font-bold text-inherit text-xl">Dynamic List</h1>
-      </NavbarBrand>
-      <NavbarContent justify="end" className="gap-4">
-        <Link 
-          as={RouterLink} 
-          to="/"
-          className="text-foreground hover:text-primary transition-colors"
-        >
-          Back to Home
-        </Link>
-        <Button 
-          color="danger" 
-          variant="flat" 
-          onClick={handleSignOut}
-          size="sm"
-          className="font-medium"
-        >
-          Sign Out
-        </Button>
-      </NavbarContent>
-    </Navbar>
+    <nav className="border-b">
+      <div className="container flex h-14 items-center justify-between">
+        <h1 className="font-medium">Dynamic List</h1>
+        <div className="flex items-center gap-4">
+          <RouterLink 
+            to="/"
+            className="text-sm text-muted-foreground hover:text-primary"
+          >
+            Back to Dashboard
+          </RouterLink>
+          <Button 
+            variant="destructive"
+            size="sm"
+            onClick={handleSignOut}
+            disabled={isLoading}
+          >
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    </nav>
   );
 };
 
@@ -59,11 +93,12 @@ export function List() {
   const deleteMutation = useDeleteItem();
   const updateMutation = useUpdateItem();
   const createMutation = useCreateItem();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen, onOpen, onClose } = useDialog();
   const [selectedItem, setSelectedItem] = useState<DynamicData | null>(null);
   const [editForm, setEditForm] = useState<DynamicData>({} as DynamicData);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [newField, setNewField] = useState<FieldInput>({ name: '', value: '' });
+  const [dynamicFields, setDynamicFields] = useState<{[key: string]: string}>({});
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -95,45 +130,46 @@ export function List() {
 
   const handleCreate = useCallback(async () => {
     try {
-      const { id, ...data } = editForm;  // Remove ID from the data sent to API
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync(dynamicFields);
       onClose();
+      setDynamicFields({});
     } catch (error) {
       console.error('Error creating item:', error);
     }
-  }, [editForm, createMutation]);
-
-  const openCreateModal = useCallback(() => {
-    setModalMode('create');
-    setEditForm({ id: crypto.randomUUID(), name: '' } as DynamicData);
-    setNewField({ name: '', value: '' });
-    onOpen();
-  }, []);
+  }, [dynamicFields, createMutation]);
 
   const handleAddField = useCallback(() => {
     if (newField.name.trim()) {
-      setEditForm(prev => ({
-        ...prev,
-        [newField.name.trim()]: newField.value
-      }));
+      handleFieldChange(newField.name.trim(), newField.value);
       setNewField({ name: '', value: '' });
     }
   }, [newField]);
 
   const removeField = useCallback((fieldName: string) => {
-    setEditForm(prev => {
-      const newForm = { ...prev };
-      delete newForm[fieldName];
-      return newForm;
+    setDynamicFields(prev => {
+      const newFields = { ...prev };
+      delete newFields[fieldName];
+      return newFields;
     });
   }, []);
 
+  const handleFieldChange = useCallback((field: string, value: string) => {
+    setDynamicFields(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  const handleOpenCreate = useCallback(() => {
+    setModalMode('create');
+    setDynamicFields({});
+    setNewField({ name: '', value: '' });
+    onOpen();
+  }, []);
+
+  // Replace the loading state JSX with LoadingSpinner
   if (isLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50">
-        <Spinner size="lg" />
-      </div>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
   // Get all unique keys from items
@@ -155,18 +191,17 @@ export function List() {
       return (
         <div className="flex gap-2">
           <Button 
-            color="primary" 
-            variant="flat" 
+            variant="ghost"
             size="sm"
             onClick={() => handleEdit(item)}
           >
             Edit
           </Button>
           <Button 
-            color="danger" 
-            variant="flat" 
+            variant="ghost"
             size="sm"
             onClick={() => handleDelete(item.id)}
+            className="text-destructive"
           >
             Delete
           </Button>
@@ -182,135 +217,187 @@ export function List() {
   };
 
   return (
-    <div className="w-screen min-h-screen bg-gradient-to-br from-blue-50 to-violet-50">
-      <AppNavbar />
-      <div className="container mx-auto px-4 py-8">
+    <PageLayout>
+      <Navbar 
+        title="Dynamic List" 
+        backLink={{ to: "/", label: "Back to Dashboard" }}
+      />
+      <PageContent>
+        <PageHeader 
+          title="Dynamic List"
+          description="Manage your dynamic data entries"
+        />
+        
         <Card>
-          <CardBody>
-            <div className="flex justify-end mb-4">
+          <CardHeader className="border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle>Items List</CardTitle>
               <Button 
-                color="primary"
-                onClick={openCreateModal}
+                onClick={handleOpenCreate} 
+                size="sm"
               >
-                Add New
+                Add New Item
               </Button>
             </div>
-            <Table
-              aria-label="Items table"
-              removeWrapper
-              classNames={{
-                base: "min-h-[100px]",
-                emptyWrapper: "h-[300px]" // Changed from 'empty' to 'emptyWrapper'
-              }}
-            >
-              <TableHeader columns={columns}>
-                {(column) => (
-                  <TableColumn key={column.key}>
-                    {column.label}
-                  </TableColumn>
-                )}
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {columns.map((column) => (
+                    <TableHead key={column.key}>{column.label}</TableHead>
+                  ))}
+                </TableRow>
               </TableHeader>
-              <TableBody
-                items={items}
-                emptyContent={items.length === 0 ? "No data found" : undefined}
-              >
-                {(item) => (
-                  <TableRow key={item.id}>
-                    {(columnKey) => (
-                      <TableCell>{renderCell(item, columnKey)}</TableCell>
-                    )}
+              <TableBody>
+                {items.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="text-center">
+                      <span className="text-muted-foreground">
+                        No items found. Add your first item to get started.
+                      </span>
+                    </TableCell>
                   </TableRow>
+                ) : (
+                  items.map((item) => (
+                    <TableRow key={item.id}>
+                      {columns.map((column) => (
+                        <TableCell key={`${item.id}-${column.key}`}>
+                          {renderCell(item, column.key)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
-          </CardBody>
+          </CardContent>
         </Card>
-      </div>
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalContent>
-          <ModalHeader>
-            {modalMode === 'create' ? 'Add New Item' : 'Edit Item'}
-          </ModalHeader>
-          <ModalBody>
-            {modalMode === 'create' && (
-              <Card className="bg-default-50 mb-4">
-                <CardBody>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex gap-2">
-                      <Input
-                        label="Field Name"
-                        placeholder="Enter field name"
-                        value={newField.name}
-                        onChange={(e) => setNewField(prev => ({ ...prev, name: e.target.value }))}
-                        className="flex-1"
-                      />
-                      <Input
-                        label="Field Value"
-                        placeholder="Enter value"
-                        value={newField.value}
-                        onChange={(e) => setNewField(prev => ({ ...prev, value: e.target.value }))}
-                        className="flex-1"
-                      />
-                      <Button
-                        color="primary"
-                        onClick={handleAddField}
-                        className="mt-1"
-                        isDisabled={!newField.name.trim()}
-                      >
-                        Add Field
-                      </Button>
+
+        <Dialog open={isOpen} onOpenChange={onClose}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {modalMode === 'create' ? 'Add New Item' : 'Edit Item'}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                {modalMode === 'create' 
+                  ? 'Add a new item with custom fields and values'
+                  : 'Modify the existing item fields and values'}
+              </p>
+            </DialogHeader>
+            {modalMode === 'create' ? (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add Field</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Field Name</label>
+                        <Input
+                          placeholder="Enter field name"
+                          value={newField.name}
+                          onChange={(e) => setNewField(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Field Value</label>
+                        <Input
+                          placeholder="Enter value"
+                          value={newField.value}
+                          onChange={(e) => setNewField(prev => ({ ...prev, value: e.target.value }))}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </CardBody>
-              </Card>
-            )}
-
-            {Object.entries(editForm)
-              .filter(([key]) => key !== 'id')
-              .map(([fieldName, value]) => (
-                <div key={fieldName} className="flex gap-2 mb-4">
-                  <Input
-                    label={fieldName.toUpperCase()}
-                    value={String(value || '')}
-                    onChange={(e) => setEditForm(prev => ({
-                      ...prev,
-                      [fieldName]: e.target.value
-                    }))}
-                    className="flex-1"
-                  />
-                  {modalMode === 'create' && (
                     <Button
-                      color="danger"
-                      variant="light"
-                      onClick={() => removeField(fieldName)}
-                      className="mt-1"
-                      isIconOnly
+                      onClick={handleAddField}
+                      disabled={!newField.name.trim()}
+                      variant="secondary"
+                      className="w-full"
                     >
-                      ×
+                      Add Field
                     </Button>
-                  )}
-                </div>
-              ))}
+                  </CardContent>
+                </Card>
 
-            {modalMode === 'create' && Object.keys(editForm).length === 0 && (
-              <div className="text-center text-default-400">
-                Add fields using the form above
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Added Fields {Object.keys(dynamicFields).length > 0 && 
+                        `(${Object.keys(dynamicFields).length})`}
+                    </span>
+                    {Object.keys(dynamicFields).length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDynamicFields({})}
+                        className="text-destructive"
+                      >
+                        Clear All
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    {Object.entries(dynamicFields).map(([field, value]) => (
+                      <div key={field} className="flex items-center justify-between p-3 border rounded-md">
+                        <div>
+                          <div className="font-medium">{field}</div>
+                          <div className="text-sm text-muted-foreground">{value}</div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeField(field)}
+                          className="text-destructive"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(editForm)
+                  .filter(([key]) => key !== 'id')
+                  .map(([fieldName, value]) => (
+                    <div key={fieldName} className="grid gap-2">
+                      <label className="text-sm font-medium">{fieldName}</label>
+                      <Input
+                        value={value as string}
+                        onChange={(e) => setEditForm(prev => ({
+                          ...prev,
+                          [fieldName]: e.target.value
+                        }))}
+                      />
+                    </div>
+                  ))}
               </div>
             )}
-          </ModalBody>
-          <ModalFooter>
-            <Button color="danger" variant="light" onPress={onClose}>
-              Cancel
-            </Button>
-            <Button 
-              color="primary" 
-              onPress={modalMode === 'create' ? handleCreate : handleUpdate}
-            >
-              {modalMode === 'create' ? 'Create' : 'Save Changes'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </div>
+            <DialogFooter>
+              <Button 
+                variant="outline"
+                onClick={onClose}
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={modalMode === 'create' ? handleCreate : handleUpdate}
+                disabled={(modalMode === 'create' && Object.keys(dynamicFields).length === 0) ||
+                         (modalMode === 'edit' && Object.keys(editForm).length <= 1)}
+                size="sm"
+              >
+                {modalMode === 'create' ? 'Create' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </PageContent>
+    </PageLayout>
   );
 }
