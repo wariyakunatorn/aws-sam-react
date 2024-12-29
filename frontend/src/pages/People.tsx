@@ -4,13 +4,12 @@ import {
   ModalContent, ModalHeader, ModalBody, ModalFooter, Input, useDisclosure 
 } from '@nextui-org/react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useState, useEffect, ReactElement } from 'react';
-import { get, post, del, put } from 'aws-amplify/api';
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { useState, useEffect } from 'react';
+import { useApi } from '../hooks/useApi';
 
 interface DynamicData {
   id: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | object;
 }
 
 interface FieldInput {
@@ -18,140 +17,50 @@ interface FieldInput {
   value: string;
 }
 
-interface ApiError {
-  message: string;
-  statusCode?: number;
-}
-
-const useApi = () => {
-  const updateItem = async (id: string, data: DynamicData) => {
-    const session = await fetchAuthSession();
-    return put({
-      apiName: 'myApi',
-      path: `/crud/${id}`,
-      options: {
-        headers: {
-          Authorization: `Bearer ${session.tokens?.idToken?.toString()}`,
-          'Content-Type': 'application/json'
-        },
-        body: data
-      }
-    });
-  };
-
-  return { updateItem };
-};
-
 export function People() {
-  const [data, setData] = useState<DynamicData[]>([]);
-  const [error, setError] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
+  const { useItems, useCreateItem, useUpdateItem, useDeleteItem } = useApi();
+  const { data: apiData, isLoading } = useItems();
+  const data = (apiData || []) as DynamicData[];
+  const createMutation = useCreateItem();
+  const updateMutation = useUpdateItem();
+  const deleteMutation = useDeleteItem();
+  
   const [selectedItem, setSelectedItem] = useState<DynamicData | null>(null);
   const [formData, setFormData] = useState<DynamicData>({} as DynamicData);
   const [newField, setNewField] = useState<FieldInput>({ name: '', value: '' });
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const { updateItem } = useApi();
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-        const session = await fetchAuthSession();
-        const response = await get({
-            apiName: 'myApi',
-            path: '/crud',
-            options: {
-                headers: {
-                    'Authorization': `Bearer ${session.tokens?.idToken?.toString()}`
-                },
-                withCredentials: false
-            }
-        }).response;
-        const json = await response.body.json();
-        setData(Array.isArray(json) ? json.map(item => item as DynamicData) : []);
-        setError('');
-    } catch (err) {
-        setError('Failed to fetch data');
-        // Remove the setTimeout(fetchData, 3000);
-    } finally {
-        setIsLoading(false);
-    }
-};
+  const fetchData = () => {
+    // Data is automatically fetched by useItems()
+    setErrorMessage('');
+  };
 
   const handleCreate = async () => {
     try {
-      const session = await fetchAuthSession();
-      const response = await post({
-        apiName: 'myApi',
-        path: '/crud',
-        options: {
-          headers: {
-            'Authorization': `Bearer ${session.tokens?.idToken?.toString()}`
-          },
-          body: formData
-        }
-      }).response;
-      
-      const newItem = await response.body.json() as DynamicData;
-      setData(prevData => [...prevData, newItem]);
+      await createMutation.mutateAsync(formData);
       onClose();
     } catch (err) {
-      setError('Failed to create item');
+      setErrorMessage('Failed to create item');
     }
   };
 
   const handleUpdate = async () => {
-    if (!selectedItem?.id) {
-      setError('No item selected for update');
-      return;
-    }
-
-    setIsLoading(true);
-
+    if (!selectedItem?.id) return;
     try {
-      // Optimistic update
-      const updatedData = data.map(item => 
-        item.id === selectedItem.id ? formData : item
-      );
-      setData(updatedData);
-      
-      await updateItem(selectedItem.id, formData);
+      await updateMutation.mutateAsync({ id: selectedItem.id, data: formData });
       onClose();
-      setError('');
-    } catch (err: unknown) {
-      console.error('Update error:', err);
-      const error = err as ApiError;
-      setError(error.message || 'Failed to update item');
-      setData(data); // Revert optimistic update
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      setErrorMessage('Failed to update item');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!id) {
-      setError('Invalid item ID');
-      return;
-    }
-
-    setData(prevData => prevData.filter(item => item.id !== id));
-    
     try {
-      const session = await fetchAuthSession();
-      await del({
-        apiName: 'myApi',
-        path: `/crud/${id}`,
-        options: {
-          headers: {
-            'Authorization': `Bearer ${session.tokens?.idToken?.toString()}`
-          }
-        }
-      });
-      setError('');
+      await deleteMutation.mutateAsync(id);
     } catch (err) {
-      console.error('Delete error:', err);
-      setError('Failed to delete item');
-      fetchData(); // Revert optimistic update
+      setErrorMessage('Failed to delete item');
     }
   };
 
@@ -196,6 +105,11 @@ export function People() {
     fetchData();
   }, [isOpen]);
 
+  // Get unique columns from data with proper typing
+  const columns: string[] = Array.from(new Set(
+    data.flatMap((item: DynamicData) => Object.keys(item))
+  )).filter(key => key !== 'id');
+
   return (
     <div className="w-screen min-h-screen bg-gradient-to-br from-blue-50 to-violet-50">
       <Navbar className="border-b border-divider bg-background/70 backdrop-blur-sm">
@@ -215,50 +129,53 @@ export function People() {
       <main className="max-w-[1024px] mx-auto px-6 pt-6">
         <Card className="shadow-md">
           <CardBody className="p-6">
-            {error && <p className="text-danger text-center mb-4">{error}</p>}
+            {errorMessage && <p className="text-danger text-center mb-4">{errorMessage}</p>}
             {isLoading ? (
               <div className="flex justify-center items-center h-40">
                 <Spinner size="lg" />
               </div>
             ) : data.length > 0 ? (
-<Table aria-label="Dynamic data table">
-  <TableHeader>
-    <TableColumn>ID</TableColumn>
-    {Array.from(new Set(data.flatMap(item => Object.keys(item))))
-      .filter(key => key !== 'id')
-      .map((column: string) => (
-        <TableColumn key={column}>{column.toUpperCase()}</TableColumn>
-      )) as unknown as ReactElement}
-    <TableColumn>ACTIONS</TableColumn>
-  </TableHeader>
-  <TableBody>
-    {data.map((item) => (
-      <TableRow key={item.id}>
-        <TableCell>{item.id}</TableCell>
-        {Array.from(new Set(data.flatMap(item => Object.keys(item))))
-          .filter(key => key !== 'id')
-          .map((column: string) => (
-            <TableCell key={`${item.id}-${column}`}>
-              {typeof item[column] === 'object' 
-                ? JSON.stringify(item[column]) 
-                : String(item[column] ?? '-')}
-            </TableCell>
-          )) as unknown as ReactElement}
-        <TableCell>
-          <div className="flex gap-2">
-            <Button size="sm" color="primary" onPress={() => openEditModal(item)}>
-              Edit
-            </Button>
-            <Button size="sm" color="danger" onPress={() => handleDelete(item.id)}>
-              Delete
-            </Button>
-          </div>
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
-
+              <Table aria-label="Dynamic data table">
+                <TableHeader>
+                  {[
+                    { key: 'id', label: 'ID' },
+                    ...columns.map(column => ({ key: column, label: column.toUpperCase() })),
+                    { key: 'actions', label: 'ACTIONS' }
+                  ].map(({ key, label }) => (
+                    <TableColumn key={key}>{label}</TableColumn>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {data.map((item: DynamicData) => (
+                    <TableRow key={item.id}>
+                      {[
+                        { key: 'id', content: item.id },
+                        ...columns.map(column => ({
+                          key: `${item.id}-${column}`,
+                          content: typeof item[column] === 'object' 
+                            ? JSON.stringify(item[column]) 
+                            : String(item[column] ?? '-')
+                        })),
+                        {
+                          key: `${item.id}-actions`,
+                          content: (
+                            <div className="flex gap-2">
+                              <Button size="sm" color="primary" onPress={() => openEditModal(item)}>
+                                Edit
+                              </Button>
+                              <Button size="sm" color="danger" onPress={() => handleDelete(item.id)}>
+                                Delete
+                              </Button>
+                            </div>
+                          )
+                        }
+                      ].map(({ key, content }) => (
+                        <TableCell key={key}>{content}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
               <p className="text-center text-default-600">No data available</p>
             )}
@@ -328,7 +245,7 @@ export function People() {
                   <div key={fieldName} className="flex gap-2">
                     <Input
                       label={fieldName.toUpperCase()}
-                      value={value || ''}
+                      value={String(value || '')}
                       onChange={(e) => setFormData({...formData, [fieldName]: e.target.value})}
                       className="flex-grow"
                     />
