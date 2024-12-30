@@ -19,7 +19,10 @@ export default function Profile() {
     const getUserAttributes = async () => {
       try {
         const userAttributes = await fetchUserAttributes();
-        setAttributes(userAttributes);
+        setAttributes({
+          email: userAttributes.email,
+          username: userAttributes.preferred_username
+        });
       } catch (err) {
         setError('Failed to fetch user attributes');
         console.error(err);
