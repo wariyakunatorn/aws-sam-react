@@ -1,3 +1,4 @@
+// This file can be merged with `frontend/src/vite-env.d.ts`.
 declare global {
     namespace NodeJS {
       interface ProcessEnv {
@@ -9,4 +10,3 @@ declare global {
   }
   
   export {}
-  

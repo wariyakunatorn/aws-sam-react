@@ -1,99 +1,102 @@
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { useCallback, useState } from 'react';
-import { type DynamicData } from '../types';
-import { useListItems, useDeleteItem, useUpdateItem, useCreateItem } from '../api/hooks';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Navbar } from "@/components/Navbar"
 import { PageLayout, PageHeader, PageContent } from "@/components/PageLayout"
-import { type ColumnDef } from "@tanstack/react-table"
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { DataTable } from "@/components/DataTable"
+import { useListItems, useDeleteItem, useUpdateItem, useCreateItem } from '@/hooks/useItems';
+import { useDialog } from '@/hooks/useDialog';
+import { useItemForm } from '@/hooks/useItemForm';
+import { ItemFormDialog } from '@/components/ItemFormDialog';
+import { type ColumnDef, Row } from "@tanstack/react-table"
+import { useMemo, useCallback } from 'react';
+import { type DynamicData } from '@/types';
+import { v4 as uuidv4 } from 'uuid';  // Add this import
 
-// Add dialog hook
-const useDialog = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  return {
-    isOpen,
-    onOpen: () => setIsOpen(true),
-    onClose: () => setIsOpen(false)
-  };
-};
-
-interface FieldInput {
-  name: string;
-  value: string;
-}
-
-// Simplify the table structure
 export function List() {
-  const { data: items = [], isLoading } = useListItems();
-  const deleteMutation = useDeleteItem();
-  const updateMutation = useUpdateItem();
-  const createMutation = useCreateItem();
+  const { data, isLoading } = useListItems();
+  const items = data || [];
+  const { mutateAsync: deleteItem } = useDeleteItem();
+  const { mutateAsync: updateItem } = useUpdateItem();
+  const { mutateAsync: createItem } = useCreateItem();
   const { isOpen, onOpen, onClose } = useDialog();
-  const [selectedItem, setSelectedItem] = useState<DynamicData | null>(null);
-  const [editForm, setEditForm] = useState<DynamicData>({} as DynamicData);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const [newField, setNewField] = useState<FieldInput>({ name: '', value: '' });
-  const [dynamicFields, setDynamicFields] = useState<{[key: string]: string}>({});
+  const {
+    selectedItem,
+    setSelectedItem,
+    editForm,
+    setEditForm,
+    modalMode,
+    setModalMode,
+    dynamicFields,
+    setDynamicFields,
+    resetForm,
+    newField,
+    setNewField
+  } = useItemForm();
 
+  // Define handlers first
   const handleDelete = useCallback(async (id: string) => {
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteItem(id);
     } catch (error) {
       console.error('Error deleting item:', error);
     }
-  }, [deleteMutation]);
+  }, [deleteItem]);
 
   const handleEdit = useCallback((item: DynamicData) => {
     setSelectedItem(item);
     setEditForm(item);
     setModalMode('edit');
     onOpen();
-  }, []);
+  }, [setSelectedItem, setEditForm, setModalMode, onOpen]);
 
   const handleUpdate = useCallback(async () => {
     if (!selectedItem?.id) return;
     try {
-      await updateMutation.mutateAsync({ 
-        id: selectedItem.id, 
-        data: editForm 
-      });
+      await updateItem({ id: selectedItem.id, data: editForm });
       onClose();
     } catch (error) {
       console.error('Error updating item:', error);
     }
-  }, [selectedItem, editForm, updateMutation]);
+  }, [selectedItem, editForm, updateItem, onClose]);
 
   const handleCreate = useCallback(async () => {
+    if (Object.keys(dynamicFields).length === 0) {
+      return;
+    }
+    
+    const payload = {
+      id: uuidv4(),
+      ...dynamicFields
+    };
+
     try {
-      await createMutation.mutateAsync(dynamicFields);
+      // First close the dialog
       onClose();
+      
+      // Then create the item
+      await createItem(payload);
+      
+      // Finally reset the form state
       setDynamicFields({});
+      setNewField({ name: '', value: '' });
+      resetForm();
     } catch (error) {
       console.error('Error creating item:', error);
+      // Reopen dialog if there's an error
+      onOpen();
     }
-  }, [dynamicFields, createMutation]);
+  }, [createItem, dynamicFields, onClose, onOpen, resetForm, setDynamicFields, setNewField]);
 
   const handleAddField = useCallback(() => {
     if (newField.name.trim()) {
-      handleFieldChange(newField.name.trim(), newField.value);
+      setDynamicFields(prev => ({
+        ...prev,
+        [newField.name.trim()]: newField.value
+      }));
       setNewField({ name: '', value: '' });
     }
-  }, [newField]);
+  }, [newField, setDynamicFields, setNewField]);
 
   const removeField = useCallback((fieldName: string) => {
     setDynamicFields(prev => {
@@ -101,39 +104,22 @@ export function List() {
       delete newFields[fieldName];
       return newFields;
     });
-  }, []);
-
-  const handleFieldChange = useCallback((field: string, value: string) => {
-    setDynamicFields(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  }, []);
+  }, [setDynamicFields]);
 
   const handleOpenCreate = useCallback(() => {
     setModalMode('create');
-    setDynamicFields({});
-    setNewField({ name: '', value: '' });
+    resetForm();
     onOpen();
-  }, []);
+  }, [setModalMode, resetForm, onOpen]);
 
-  // Replace the loading state JSX with LoadingSpinner
-  if (isLoading) {
-    return <LoadingSpinner fullScreen />;
-  }
+  // Then define memoized values that depend on handlers
+  const columnKeys = useMemo(() => Array.from(new Set(
+    items.flatMap((item: DynamicData) => 
+      item ? Object.keys(item) : []
+    )
+  )).filter((key): key is string => key !== 'id'), [items]);
 
-  // Get all unique keys from items
-  const columnKeys = Array.from(new Set(
-    items.flatMap(item => Object.keys(item))
-  )).filter(key => key !== 'id'); // Put ID first
-
-  const columns: ColumnDef<DynamicData>[] = [
-    {
-      accessorKey: "id",
-      header: "ID",
-      enableSorting: true,
-    },
-    // Generate dynamic columns
+  const columns: ColumnDef<DynamicData>[] = useMemo(() => [
     ...columnKeys.map((key) => ({
       accessorKey: key,
       header: key.toUpperCase(),
@@ -143,8 +129,8 @@ export function List() {
       id: "actions",
       header: "Actions",
       enableSorting: false,
-      cell: ({ row }) => {
-        const item = row.original
+      cell: ({ row }: { row: Row<DynamicData> }) => {
+        const item = row.original;
         return (
           <div className="flex gap-2">
             <Button 
@@ -166,7 +152,11 @@ export function List() {
         )
       }
     }
-  ]
+  ], [columnKeys, handleEdit, handleDelete]);
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen />;
+  }
 
   return (
     <PageLayout>
@@ -190,134 +180,23 @@ export function List() {
             </div>
           </CardHeader>
           <CardContent>
-            <DataTable columns={columns} data={items} />
+            <DataTable columns={columns} data={items as DynamicData[]} />
           </CardContent>
         </Card>
 
-        <Dialog open={isOpen} onOpenChange={onClose}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {modalMode === 'create' ? 'Add New Item' : 'Edit Item'}
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground">
-                {modalMode === 'create' 
-                  ? 'Add a new item with custom fields and values'
-                  : 'Modify the existing item fields and values'}
-              </p>
-            </DialogHeader>
-            {modalMode === 'create' ? (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Add Field</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Field Name</label>
-                        <Input
-                          placeholder="Enter field name"
-                          value={newField.name}
-                          onChange={(e) => setNewField(prev => ({ ...prev, name: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Field Value</label>
-                        <Input
-                          placeholder="Enter value"
-                          value={newField.value}
-                          onChange={(e) => setNewField(prev => ({ ...prev, value: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleAddField}
-                      disabled={!newField.name.trim()}
-                      variant="secondary"
-                      className="w-full"
-                    >
-                      Add Field
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Added Fields {Object.keys(dynamicFields).length > 0 && 
-                        `(${Object.keys(dynamicFields).length})`}
-                    </span>
-                    {Object.keys(dynamicFields).length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDynamicFields({})}
-                        className="text-destructive"
-                      >
-                        Clear All
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    {Object.entries(dynamicFields).map(([field, value]) => (
-                      <div key={field} className="flex items-center justify-between p-3 border rounded-md">
-                        <div>
-                          <div className="font-medium">{field}</div>
-                          <div className="text-sm text-muted-foreground">{value}</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeField(field)}
-                          className="text-destructive"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {Object.entries(editForm)
-                  .filter(([key]) => key !== 'id')
-                  .map(([fieldName, value]) => (
-                    <div key={fieldName} className="grid gap-2">
-                      <label className="text-sm font-medium">{fieldName}</label>
-                      <Input
-                        value={value as string}
-                        onChange={(e) => setEditForm(prev => ({
-                          ...prev,
-                          [fieldName]: e.target.value
-                        }))}
-                      />
-                    </div>
-                  ))}
-              </div>
-            )}
-            <DialogFooter>
-              <Button 
-                variant="outline"
-                onClick={onClose}
-                size="sm"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={modalMode === 'create' ? handleCreate : handleUpdate}
-                disabled={(modalMode === 'create' && Object.keys(dynamicFields).length === 0) ||
-                         (modalMode === 'edit' && Object.keys(editForm).length <= 1)}
-                size="sm"
-              >
-                {modalMode === 'create' ? 'Create' : 'Save Changes'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </PageContent>
-    </PageLayout>
-  );
-}
+        <ItemFormDialog
+          isOpen={isOpen}
+          onClose={onClose}
+          mode={modalMode}
+          editForm={editForm}
+          setEditForm={setEditForm}
+          dynamicFields={dynamicFields}
+          setDynamicFields={setDynamicFields}
+          handleAddField={handleAddField}
+          removeField={removeField}
+          handleCreate={handleCreate}
+          handleUpdate={handleUpdate}
+          newField={newField}
+          setNewField={setNewField}
+        />
+      </PageContent>    </PageLayout>  );}

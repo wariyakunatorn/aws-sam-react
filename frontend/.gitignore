@@ -1,3 +1,4 @@
+
 # Logs
 logs
 *.log
@@ -30,3 +31,13 @@ dist-ssr
 
 package-lock.json
 tsconfig.tsbuildinfo
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production

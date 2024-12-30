@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from './store/authStore';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import Profile from "@/pages/Profile";
 
 // Lazy load components
 const Home = lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
@@ -46,7 +47,7 @@ const queryClient = new QueryClient({
   }
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   
   useEffect(() => {
@@ -74,8 +75,9 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-            <Route path="/list" element={<ProtectedRoute><List /></ProtectedRoute>} />
+            <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
+            <Route path="/list" element={<PrivateRoute><List /></PrivateRoute>} />
+            <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         </Suspense>
