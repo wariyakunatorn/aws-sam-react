@@ -2,8 +2,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Navbar } from "@/components/Navbar"
 import { PageLayout, PageHeader, PageContent } from "@/components/PageLayout"
+import { useNavigate } from 'react-router-dom';
 
 export function Home() {
+  const navigate = useNavigate();
+
   return (
     <PageLayout>
       <Navbar 
@@ -22,7 +25,11 @@ export function Home() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="secondary" className="w-full justify-start">
+              <Button 
+                variant="secondary" 
+                className="w-full justify-start"
+                onClick={() => navigate('/profile')}
+              >
                 View Profile
               </Button>
               <Button variant="secondary" className="w-full justify-start">

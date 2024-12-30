@@ -1,40 +1,68 @@
-import { useAuth } from "@/hooks/useAuth"
-import { PageContent, PageHeader, PageLayout } from "@/components/PageLayout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Navbar } from "@/components/Navbar";
+import { PageLayout, PageHeader, PageContent } from "@/components/PageLayout";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useState, useEffect } from "react";
+import { fetchUserAttributes } from 'aws-amplify/auth';
+
+interface UserAttributes {
+  email?: string;
+  username?: string;
+}
 
 export default function Profile() {
-  const { user, signOut } = useAuth()
+  const [attributes, setAttributes] = useState<UserAttributes>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getUserAttributes = async () => {
+      try {
+        const userAttributes = await fetchUserAttributes();
+        setAttributes(userAttributes);
+      } catch (err) {
+        setError('Failed to fetch user attributes');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    getUserAttributes();
+  }, []);
+
+  if (isLoading) return <LoadingSpinner fullScreen />;
+  if (error) return <div className="text-destructive text-center p-4">{error}</div>;
 
   return (
     <PageLayout>
-      <PageHeader 
+      <Navbar 
         title="Profile" 
-        description="Manage your account settings and preferences."
+        backLink={{ to: "/home", label: "Back to Dashboard" }}
       />
       <PageContent>
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <Label>Email</Label>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+        <PageHeader 
+          title="Your Profile"
+          description="View and manage your account information"
+        />
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Email Address</h3>
+                <p className="text-lg">{attributes.email}</p>
               </div>
-              <div className="space-y-1">
-                <Label>Username</Label>
-                <p className="text-sm text-muted-foreground">{user?.username}</p>
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Username</h3>
+                <p className="text-lg">{attributes.username}</p>
               </div>
-              <Button variant="destructive" onClick={signOut}>
-                Sign Out
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </PageContent>
     </PageLayout>
-  )
+  );
 }
