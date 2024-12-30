@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, del, put, post } from './client';
-import { type DynamicData } from '../types';
+import { get, del, put, post } from '@/api/client';
+import { type DynamicData } from '@/types';
 
 const API_URL = import.meta.env.VITE_API_ENDPOINT;
 

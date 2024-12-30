@@ -29,3 +29,4 @@ dist-ssr
 .env.*.local
 
 package-lock.json
+tsconfig.tsbuildinfo
