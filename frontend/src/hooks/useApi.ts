@@ -4,8 +4,10 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface DynamicData {
   id: string;
-  [key: string]: any;
+  [key:string]: any;
 }
+
+// This file has similar functionality to `frontend/src/hooks/useItems.ts` and can be removed.
 
 export const useApi = () => {
   const queryClient = useQueryClient();
