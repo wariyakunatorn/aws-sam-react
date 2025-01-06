@@ -4,6 +4,10 @@ A modern full-stack application built with React and AWS Serverless technologies
 
 ## Tech Stack
 
+### Architecture
+
+![image](./assets/diagram.png)
+
 ### Frontend
 - React + TypeScript
 - Vite
