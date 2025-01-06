@@ -8,6 +8,10 @@ A modern full-stack application built with React and AWS Serverless technologies
 
 ![image](./assets/diagram.png)
 
+### React List page for CRUD operations
+
+![image](./assets/frontend_list.png)
+
 ### Frontend
 - React + TypeScript
 - Vite
